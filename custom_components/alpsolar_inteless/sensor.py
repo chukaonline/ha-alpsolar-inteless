@@ -34,22 +34,20 @@ async def async_setup_entry(hass, entry, async_add_entities):
     async_add_entities(power_sensors)
 
     # 2. Setup Energy Sensors (Riemann Sum)
+    # We delay this slightly or ensure it targets the correct entity ID
     energy_sensors = []
     
     for ps in power_sensors:
         if ps._key in ["pvPower", "loadOrEpsPower", "gridOrMeterPower"]:
-            # We added 'hass' as a positional and 'max_sub_interval' as a keyword argument
+            # We construct the exact entity_id HA will assign to the power sensor
+            source_entity = f"sensor.{ps.unique_id}"
+            
             energy_sensors.append(
-                IntegrationSensor(
+                AlpsolarEnergySensor(
                     hass=hass,
-                    integration_method="left",
+                    source_entity=source_entity,
                     name=f"{ps._attr_name} Energy",
-                    round_digits=2,
-                    source_entity=f"sensor.{ps.unique_id}",
                     unique_id=f"{ps.unique_id}_energy",
-                    unit_prefix="k",
-                    unit_time=UnitOfTime.HOURS,
-                    max_sub_interval=None
                 )
             )
     
@@ -114,6 +112,7 @@ class AlpsolarSensor(CoordinatorEntity, SensorEntity):
         self._attr_device_class = device_class
         self._attr_native_unit_of_measurement = unit
         self._attr_state_class = SensorStateClass.MEASUREMENT
+        # Fixed Unique ID
         self.unique_id = f"alps_{coordinator.config[CONF_PLANT_ID]}_{key.lower()}"
         self._attr_unique_id = self.unique_id
         
@@ -130,3 +129,20 @@ class AlpsolarSensor(CoordinatorEntity, SensorEntity):
             val = self.coordinator.data.get(self._key)
             return float(val) if val is not None else 0.0
         return 0.0
+
+class AlpsolarEnergySensor(IntegrationSensor):
+    """Custom wrapper for the Riemann Sum sensor."""
+    
+    def __init__(self, hass, source_entity, name, unique_id):
+        """Initialize the energy sensor."""
+        super().__init__(
+            hass=hass,
+            integration_method="left",
+            name=name,
+            round_digits=2,
+            source_entity=source_entity,
+            unique_id=unique_id,
+            unit_prefix="k",
+            unit_time=UnitOfTime.HOURS,
+            max_sub_interval=None
+        )
