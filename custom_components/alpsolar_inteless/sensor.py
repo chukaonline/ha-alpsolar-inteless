@@ -13,16 +13,18 @@ from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
     UpdateFailed,
 )
+from homeassistant.util import slugify
 from .const import DOMAIN, REGIONS, CONF_PLANT_ID, CONF_REGION
 
 _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(hass, entry, async_add_entities):
-    """Set up Alpsolar sensors with forced entity IDs."""
+    """Set up Alpsolar sensors with dynamic ID matching."""
     coordinator = AlpsolarCoordinator(hass, entry.data)
     await coordinator.async_config_entry_first_refresh()
     
     all_entities = []
+    # These match the names Home Assistant is using to create your entities
     power_configs = [
         ("pvPower", "Solar PV Power", SensorDeviceClass.POWER, "W"),
         ("loadOrEpsPower", "House Load", SensorDeviceClass.POWER, "W"),
@@ -31,22 +33,27 @@ async def async_setup_entry(hass, entry, async_add_entities):
         ("gridOrMeterPower", "Grid Power", SensorDeviceClass.POWER, "W"),
     ]
     
+    device_name = "Alpsolar Inverter"
+
     for key, name, dev_class, unit in power_configs:
         # Create the Power Sensor
-        ps = AlpsolarSensor(coordinator, key, name, dev_class, unit)
+        ps = AlpsolarSensor(coordinator, key, name, dev_class, unit, device_name)
         all_entities.append(ps)
         
-        # Create the Energy Sensor if applicable
+        # Create Energy Sensor
         if key in ["pvPower", "loadOrEpsPower", "gridOrMeterPower"]:
-            # We reference the exact entity_id we forced in the AlpsolarSensor class
-            source_id = f"sensor.alps_{coordinator.config[CONF_PLANT_ID]}_{key.lower()}"
+            # We match the HA slug: sensor.{device_name}_{sensor_name}
+            slug = slugify(f"{device_name} {name}")
+            source_id = f"sensor.{slug}"
+            
             all_entities.append(
                 AlpsolarEnergySensor(
                     hass=hass,
                     source_entity=source_id,
                     name=f"{name} Energy",
                     unique_id=f"{ps.unique_id}_energy",
-                    plant_id=coordinator.config[CONF_PLANT_ID]
+                    plant_id=coordinator.config[CONF_PLANT_ID],
+                    device_name=device_name
                 )
             )
     
@@ -73,7 +80,7 @@ class AlpsolarCoordinator(DataUpdateCoordinator):
         return await self.hass.async_add_executor_job(fetch)
 
 class AlpsolarSensor(CoordinatorEntity, SensorEntity):
-    def __init__(self, coordinator, key, name, device_class, unit):
+    def __init__(self, coordinator, key, name, device_class, unit, device_name):
         super().__init__(coordinator)
         self._key = key
         self._attr_name = name
@@ -81,13 +88,9 @@ class AlpsolarSensor(CoordinatorEntity, SensorEntity):
         self._attr_native_unit_of_measurement = unit
         self._attr_state_class = SensorStateClass.MEASUREMENT
         
-        # FORCING THE ENTITY ID: This ensures the Energy sensor always finds it.
-        plant_id = coordinator.config[CONF_PLANT_ID]
-        self.unique_id = f"alps_{plant_id}_{key.lower()}"
-        self.entity_id = f"sensor.{self.unique_id}"
-        
+        self.unique_id = f"alps_{coordinator.config[CONF_PLANT_ID]}_{key.lower()}"
         self._attr_unique_id = self.unique_id
-        self._attr_device_info = {"identifiers": {(DOMAIN, plant_id)}, "name": "Alpsolar Inverter"}
+        self._attr_device_info = {"identifiers": {(DOMAIN, coordinator.config[CONF_PLANT_ID])}, "name": device_name}
 
     @property
     def native_value(self):
@@ -100,16 +103,10 @@ class AlpsolarSensor(CoordinatorEntity, SensorEntity):
         return 0.0
 
 class AlpsolarEnergySensor(IntegrationSensor):
-    def __init__(self, hass, source_entity, name, unique_id, plant_id):
+    def __init__(self, hass, source_entity, name, unique_id, plant_id, device_name):
         super().__init__(
-            hass=hass,
-            integration_method="left",
-            name=name,
-            round_digits=2,
-            source_entity=source_entity,
-            unique_id=unique_id,
-            unit_prefix="k",
-            unit_time=UnitOfTime.HOURS,
-            max_sub_interval=None
+            hass=hass, integration_method="left", name=name, round_digits=2,
+            source_entity=source_entity, unique_id=unique_id, unit_prefix="k",
+            unit_time=UnitOfTime.HOURS, max_sub_interval=None
         )
-        self._attr_device_info = {"identifiers": {(DOMAIN, plant_id)}, "name": "Alpsolar Inverter"}
+        self._attr_device_info = {"identifiers": {(DOMAIN, plant_id)}, "name": device_name}
