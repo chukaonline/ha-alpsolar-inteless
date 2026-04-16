@@ -1,0 +1,16 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "data": {
+          "username": "Username (Email)",
+          "password": "Password",
+          "plant_id": "Plant ID"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Invalid username or password. Check your Inteless credentials."
+    }
+  }
+}
