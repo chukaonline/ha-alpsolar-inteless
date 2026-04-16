@@ -22,7 +22,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
     coordinator = AlpsolarCoordinator(hass, entry.data)
     await coordinator.async_config_entry_first_refresh()
     
-    # 1. Define the core Power sensors
+    # 1. Create the Power sensors
     power_sensors = [
         AlpsolarSensor(coordinator, "pvPower", "Solar PV Power", SensorDeviceClass.POWER, "W"),
         AlpsolarSensor(coordinator, "loadOrEpsPower", "House Load", SensorDeviceClass.POWER, "W"),
@@ -36,31 +36,21 @@ async def async_setup_entry(hass, entry, async_add_entities):
     # 2. Setup Energy Sensors (Riemann Sum)
     energy_sensors = []
     
-    # Standard integrations for PV, Load, and Grid
     for ps in power_sensors:
         if ps._key in ["pvPower", "loadOrEpsPower", "gridOrMeterPower"]:
-            # We create a unique name and link it to the power sensor entity ID
-            # Note: We use the unique_id of the power sensor to track the source
-            source_entity_id = f"sensor.{ps.unique_id}"
-            
+            # We must pass 'hass' as the first argument to IntegrationSensor
             energy_sensors.append(
                 IntegrationSensor(
+                    hass=hass,
                     integration_method="left",
                     name=f"{ps._attr_name} Energy",
                     round_digits=2,
-                    source_entity=source_entity_id,
+                    source_entity=f"sensor.{ps.unique_id}",
                     unique_id=f"{ps.unique_id}_energy",
                     unit_prefix="k",
                     unit_time=UnitOfTime.HOURS,
                 )
             )
-
-    # 3. Special Handling for Battery (Split into Charge and Discharge)
-    # The Energy Dashboard needs these separated. 
-    # Logic: If battPower > 0 it is charging. If < 0 it is discharging.
-    
-    # Note: For a true HACS integration, we usually use Template sensors here,
-    # but for simplicity in your VM test, users can now see these 3 main Energy sensors.
     
     async_add_entities(energy_sensors)
 
@@ -123,7 +113,7 @@ class AlpsolarSensor(CoordinatorEntity, SensorEntity):
         self._attr_device_class = device_class
         self._attr_native_unit_of_measurement = unit
         self._attr_state_class = SensorStateClass.MEASUREMENT
-        # We define a predictable unique_id so the Riemann Sum can find it
+        # Predictable ID for the Riemann Sum to follow
         self.unique_id = f"alps_{coordinator.config[CONF_PLANT_ID]}_{key.lower()}"
         self._attr_unique_id = self.unique_id
         
@@ -138,6 +128,5 @@ class AlpsolarSensor(CoordinatorEntity, SensorEntity):
         """Return the state of the sensor."""
         if self.coordinator.data:
             val = self.coordinator.data.get(self._key)
-            # Ensure we return 0 instead of None for power sensors to keep Riemann happy
             return float(val) if val is not None else 0.0
         return 0.0
