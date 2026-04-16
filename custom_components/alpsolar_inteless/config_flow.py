@@ -2,24 +2,23 @@ import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 import homeassistant.helpers.config_validation as cv
-from .const import DOMAIN, CONF_PLANT_ID, BASE_URL
-import requests
+from .const import DOMAIN, CONF_PLANT_ID, CONF_REGION, REGIONS
 
 class AlpsolarConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    """Handle a config flow for Alpsolar Inteless."""
-
     VERSION = 1
 
     async def async_step_user(self, user_input=None):
-        """Handle the initial step."""
         errors = {}
 
         if user_input is not None:
-            # Validate the credentials by attempting a login
+            # Use the URL based on selected region
+            base_url = REGIONS[user_input[CONF_REGION]]
+            
             valid = await self.hass.async_add_executor_job(
                 self._validate_login, 
                 user_input[CONF_USERNAME], 
-                user_input[CONF_PASSWORD]
+                user_input[CONF_PASSWORD],
+                base_url
             )
 
             if valid:
@@ -30,27 +29,21 @@ class AlpsolarConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             else:
                 errors["base"] = "invalid_auth"
 
-        # Form schema for the UI
+        # Form schema with Region Dropdown
         data_schema = vol.Schema({
+            vol.Required(CONF_REGION, default="Europe"): vol.In(list(REGIONS.keys())),
             vol.Required(CONF_USERNAME): cv.string,
             vol.Required(CONF_PASSWORD): cv.string,
             vol.Required(CONF_PLANT_ID): cv.string,
         })
 
-        return self.async_show_form(
-            step_id="user", data_schema=data_schema, errors=errors
-        )
+        return self.async_show_form(step_id="user", data_schema=data_schema, errors=errors)
 
-    def _validate_login(self, username, password):
-        """Check if we can login to the Inteless API."""
-        login_data = {
-            "username": username,
-            "password": password,
-            "grant_type": "password",
-            "client_id": "csp-web"
-        }
+    def _validate_login(self, username, password, base_url):
+        import requests
+        login_data = {"username": username, "password": password, "grant_type": "password", "client_id": "csp-web"}
         try:
-            r = requests.post(f"{BASE_URL}/oauth/token", json=login_data, timeout=10)
+            r = requests.post(f"{base_url}/oauth/token", json=login_data, timeout=10)
             return r.status_code == 200 and "access_token" in r.json().get("data", {})
         except Exception:
             return False
