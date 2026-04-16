@@ -9,7 +9,8 @@
   ![Platform](https://img.shields.io/badge/Platform-Home%20Assistant-blue.svg)
 
   **A professional, native integration for Alpsolar and E-Linter (Inteless) Inverters.**
-  *Developed by ICFLOURISH INTEGRATED SERVICES*
+  *Developed by chukaonline.*
+  (This is actually my first)
 </div>
 
 ---
