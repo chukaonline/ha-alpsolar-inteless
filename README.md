@@ -9,8 +9,7 @@
   ![Platform](https://img.shields.io/badge/Platform-Home%20Assistant-blue.svg)
 
   **A cloud based integration for Alpsolar and E-Linter (Inteless) Inverters.**
-  *Developed by chukaonline.*
-  (This is actually my first)
+  *Developed by chukaonline*
 </div>
 
 ---
@@ -18,12 +17,57 @@
 ### 📖 Introduction
 This integration connects Home Assistant directly to the **Inteless (E-Linter)** cloud API used by **Alpsolar Pulse S3** and similar inverters. Unlike basic scripts, this integration automatically handles the complex math required for the Home Assistant Energy Dashboard.
 
+<div align="center">
+  <img src="custom_components/alpsolar_inteless/images/energy_dashboard.png" alt="Energy Dashboard Example" width="800">
+  <br>
+  <em>The end goal: A fully automated Home Assistant Energy Dashboard.</em>
+</div>
+
 ### 🚀 Key Features
 * **Automatic Energy Helpers:** Automatically creates Riemann Sum Integrals for Solar, Grid, and Load.
 * **Smart Battery Logic:** Automatically splits bidirectional battery power into separate **Charge** and **Discharge** entities for the Energy Dashboard.
 * **Global Support:** Choose your region (Europe, Asia, America, or Global) during setup.
 * **Zero YAML:** 100% UI-based configuration via Config Flow.
 * **Device Grouping:** All entities are neatly organized under one "Alpsolar Inverter" device.
+
+---
+
+### ⚙️ Configuration & Setup
+Setting up is as simple as logging into your portal.
+
+<div align="center">
+  <img src="custom_components/alpsolar_inteless/images/config_flow.png" alt="Setup Screen" width="400">
+</div>
+
+1. Go to **Settings** > **Devices & Services**.
+2. Click **Add Integration** and search for **Alpsolar Inteless**.
+3. Select your **Region** and enter your Inteless Credentials and **Plant ID**.
+
+---
+
+### 📊 Entities Provided
+All 12 entities are automatically grouped for easy management.
+
+<div align="center">
+  <img src="custom_components/alpsolar_inteless/images/entities_list.png" alt="List of Entities" width="600">
+</div>
+
+| Type | Entity | Description |
+| :--- | :--- | :--- |
+| ⚡ **Power** | `Solar PV Power` | Real-time production (W) |
+| 🏠 **Power** | `House Load` | Domestic consumption (W) |
+| 🔋 **Power** | `Battery Power In/Out` | Separated Charge/Discharge (W) |
+| 📈 **Energy** | `Solar PV Power Energy` | Dashboard-ready (kWh) |
+| 📈 **Energy** | `Grid Power Energy` | Dashboard-ready (kWh) |
+| 🔋 **Energy** | `Battery Energy In/Out` | Dashboard-ready (kWh) |
+
+---
+### 📊 Powerflow Plus Card view
+All 12 entities are automatically grouped for easy management.
+
+<div align="center">
+  <img src="custom_components/alpsolar_inteless/images/powerflow_card.png" alt="List of Entities" width="600">
+</div>
 
 ---
 
@@ -42,23 +86,6 @@ This integration connects Home Assistant directly to the **Inteless (E-Linter)**
 2. **Restart Home Assistant.**
 
 ---
-
-### ⚙️ Configuration
-1. Go to **Settings** > **Devices & Services**.
-2. Click **Add Integration** and search for **Alpsolar Inteless**.
-3. Select your **Region** and enter your Inteless Credentials and **Plant ID**.
-
----
-
-### 📊 Entities Provided
-| Type | Entity | Description |
-| :--- | :--- | :--- |
-| ⚡ **Power** | `Solar PV Power` | Real-time production (W) |
-| 🏠 **Power** | `House Load` | Domestic consumption (W) |
-| 🔋 **Power** | `Battery Power In/Out` | Separated Charge/Discharge (W) |
-| 📈 **Energy** | `Solar PV Power Energy` | Dashboard-ready (kWh) |
-| 📈 **Energy** | `Grid Power Energy` | Dashboard-ready (kWh) |
-| 🔋 **Energy** | `Battery Energy In/Out` | Dashboard-ready (kWh) |
-
-
-
+<div align="center">
+  <sub>This is my first Home Assistant integration. Built with ❤️ by <b>chukaonline</b> at <b>ICFLOURISH</b>.</sub>
+</div>
