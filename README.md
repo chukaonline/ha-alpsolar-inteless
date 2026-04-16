@@ -8,7 +8,7 @@
   ![Community](https://img.shields.io/badge/Maintained%3F-yes-green.svg)
   ![Platform](https://img.shields.io/badge/Platform-Home%20Assistant-blue.svg)
 
-  **A professional, native integration for Alpsolar and E-Linter (Inteless) Inverters.**
+  **A cloud based integration for Alpsolar and E-Linter (Inteless) Inverters.**
   *Developed by chukaonline.*
   (This is actually my first)
 </div>
