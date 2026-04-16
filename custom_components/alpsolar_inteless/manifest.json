@@ -7,5 +7,6 @@
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/yourusername/ha-alpsolar-inteless/issues",
   "requirements": ["requests>=2.25.1"],
-  "version": "1.0.0"
+  "dependencies": ["sensor", "integration"],
+  "version": "1.1.0"
 }
