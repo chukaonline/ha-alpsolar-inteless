@@ -38,7 +38,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
     
     for ps in power_sensors:
         if ps._key in ["pvPower", "loadOrEpsPower", "gridOrMeterPower"]:
-            # We must pass 'hass' as the first argument to IntegrationSensor
+            # We added 'hass' as a positional and 'max_sub_interval' as a keyword argument
             energy_sensors.append(
                 IntegrationSensor(
                     hass=hass,
@@ -49,6 +49,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
                     unique_id=f"{ps.unique_id}_energy",
                     unit_prefix="k",
                     unit_time=UnitOfTime.HOURS,
+                    max_sub_interval=None
                 )
             )
     
@@ -113,7 +114,6 @@ class AlpsolarSensor(CoordinatorEntity, SensorEntity):
         self._attr_device_class = device_class
         self._attr_native_unit_of_measurement = unit
         self._attr_state_class = SensorStateClass.MEASUREMENT
-        # Predictable ID for the Riemann Sum to follow
         self.unique_id = f"alps_{coordinator.config[CONF_PLANT_ID]}_{key.lower()}"
         self._attr_unique_id = self.unique_id
         
