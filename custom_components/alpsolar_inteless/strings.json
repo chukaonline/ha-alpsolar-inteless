@@ -3,6 +3,7 @@
     "step": {
       "user": {
         "data": {
+          "region": "Server Region",
           "username": "Username (Email)",
           "password": "Password",
           "plant_id": "Plant ID"
