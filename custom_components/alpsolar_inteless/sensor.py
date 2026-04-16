@@ -22,127 +22,86 @@ async def async_setup_entry(hass, entry, async_add_entities):
     coordinator = AlpsolarCoordinator(hass, entry.data)
     await coordinator.async_config_entry_first_refresh()
     
-    # 1. Create the Power sensors
-    power_sensors = [
-        AlpsolarSensor(coordinator, "pvPower", "Solar PV Power", SensorDeviceClass.POWER, "W"),
-        AlpsolarSensor(coordinator, "loadOrEpsPower", "House Load", SensorDeviceClass.POWER, "W"),
-        AlpsolarSensor(coordinator, "battPower", "Battery Power", SensorDeviceClass.POWER, "W"),
-        AlpsolarSensor(coordinator, "soc", "Battery SOC", SensorDeviceClass.BATTERY, "%"),
-        AlpsolarSensor(coordinator, "gridOrMeterPower", "Grid Power", SensorDeviceClass.POWER, "W"),
+    # This will hold ALL sensors (Power + Energy)
+    all_entities = []
+
+    # 1. Define the Power sensors
+    power_configs = [
+        ("pvPower", "Solar PV Power", SensorDeviceClass.POWER, "W"),
+        ("loadOrEpsPower", "House Load", SensorDeviceClass.POWER, "W"),
+        ("battPower", "Battery Power", SensorDeviceClass.POWER, "W"),
+        ("soc", "Battery SOC", SensorDeviceClass.BATTERY, "%"),
+        ("gridOrMeterPower", "Grid Power", SensorDeviceClass.POWER, "W"),
     ]
     
-    async_add_entities(power_sensors)
-
-    # 2. Setup Energy Sensors (Riemann Sum)
-    # We delay this slightly or ensure it targets the correct entity ID
-    energy_sensors = []
-    
-    for ps in power_sensors:
-        if ps._key in ["pvPower", "loadOrEpsPower", "gridOrMeterPower"]:
-            # We construct the exact entity_id HA will assign to the power sensor
+    for key, name, dev_class, unit in power_configs:
+        ps = AlpsolarSensor(coordinator, key, name, dev_class, unit)
+        all_entities.append(ps)
+        
+        # 2. If it's a sensor we want to track for energy, create the helper immediately
+        if key in ["pvPower", "loadOrEpsPower", "gridOrMeterPower"]:
             source_entity = f"sensor.{ps.unique_id}"
-            
-            energy_sensors.append(
+            all_entities.append(
                 AlpsolarEnergySensor(
                     hass=hass,
                     source_entity=source_entity,
-                    name=f"{ps._attr_name} Energy",
+                    name=f"{name} Energy",
                     unique_id=f"{ps.unique_id}_energy",
+                    plant_id=coordinator.config[CONF_PLANT_ID]
                 )
             )
     
-    async_add_entities(energy_sensors)
+    # Send the full combined list to Home Assistant in one go
+    async_add_entities(all_entities)
 
 class AlpsolarCoordinator(DataUpdateCoordinator):
-    """Class to manage fetching data from the Inteless API."""
-
     def __init__(self, hass, config):
-        """Initialize the coordinator."""
-        super().__init__(
-            hass,
-            _LOGGER,
-            name=DOMAIN,
-            update_interval=timedelta(seconds=60),
-        )
+        super().__init__(hass, _LOGGER, name=DOMAIN, update_interval=timedelta(seconds=60))
         self.config = config
 
     async def _async_update_data(self):
-        """Fetch data from the API shard selected by the user."""
         def fetch():
             try:
                 region_name = self.config.get(CONF_REGION, "Europe")
                 base_url = REGIONS.get(region_name, "https://euapi.inteless.com")
+                login_data = {"username": self.config["username"], "password": self.config["password"], "grant_type": "password", "client_id": "csp-web"}
                 
-                login_data = {
-                    "username": self.config["username"],
-                    "password": self.config["password"],
-                    "grant_type": "password",
-                    "client_id": "csp-web"
-                }
+                token_r = requests.post(f"{base_url}/oauth/token", json=login_data, timeout=15)
+                token = token_r.json().get("data", {}).get("access_token")
                 
-                token_response = requests.post(f"{base_url}/oauth/token", json=login_data, timeout=15)
-                token_response.raise_for_status()
-                token = token_response.json().get("data", {}).get("access_token")
-                
-                if not token:
-                    raise UpdateFailed("Failed to obtain access token")
-
-                headers = {"Authorization": f"Bearer {token}"}
-                plant_id = self.config[CONF_PLANT_ID]
-                flow_url = f"{base_url}/api/v1/plant/energy/{plant_id}/flow"
-                
-                res = requests.get(flow_url, headers=headers, timeout=15)
-                res.raise_for_status()
-                
+                res = requests.get(f"{base_url}/api/v1/plant/energy/{self.config[CONF_PLANT_ID]}/flow", 
+                                   headers={"Authorization": f"Bearer {token}"}, timeout=15)
                 return res.json().get("data") or {}
-
             except Exception as err:
-                raise UpdateFailed(f"Error communicating with API: {err}")
-
+                raise UpdateFailed(f"API Error: {err}")
         return await self.hass.async_add_executor_job(fetch)
 
 class AlpsolarSensor(CoordinatorEntity, SensorEntity):
-    """Representation of an Alpsolar power sensor."""
-
     def __init__(self, coordinator, key, name, device_class, unit):
-        """Initialize the sensor."""
         super().__init__(coordinator)
         self._key = key
         self._attr_name = name
         self._attr_device_class = device_class
         self._attr_native_unit_of_measurement = unit
         self._attr_state_class = SensorStateClass.MEASUREMENT
-        # Fixed Unique ID
         self.unique_id = f"alps_{coordinator.config[CONF_PLANT_ID]}_{key.lower()}"
         self._attr_unique_id = self.unique_id
-        
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, coordinator.config[CONF_PLANT_ID])},
-            "name": "Alpsolar Inverter",
-            "manufacturer": "Alpsolar / E-Linter",
-        }
+        self._attr_device_info = {"identifiers": {(DOMAIN, coordinator.config[CONF_PLANT_ID])}, "name": "Alpsolar Inverter"}
 
     @property
     def native_value(self):
-        """Return the state of the sensor."""
         if self.coordinator.data:
             val = self.coordinator.data.get(self._key)
             return float(val) if val is not None else 0.0
         return 0.0
 
 class AlpsolarEnergySensor(IntegrationSensor):
-    """Custom wrapper for the Riemann Sum sensor."""
-    
-    def __init__(self, hass, source_entity, name, unique_id):
-        """Initialize the energy sensor."""
+    """Riemann Sum sensor that also shows up in the Inverter Device."""
+    def __init__(self, hass, source_entity, name, unique_id, plant_id):
         super().__init__(
-            hass=hass,
-            integration_method="left",
-            name=name,
-            round_digits=2,
-            source_entity=source_entity,
-            unique_id=unique_id,
-            unit_prefix="k",
-            unit_time=UnitOfTime.HOURS,
-            max_sub_interval=None
+            hass=hass, integration_method="left", name=name, round_digits=2,
+            source_entity=source_entity, unique_id=unique_id, unit_prefix="k",
+            unit_time=UnitOfTime.HOURS, max_sub_interval=None
         )
+        # This links the Energy sensor to the same Device as the Power sensors
+        self._attr_device_info = {"identifiers": {(DOMAIN, plant_id)}, "name": "Alpsolar Inverter"}
