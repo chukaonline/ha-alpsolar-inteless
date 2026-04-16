@@ -8,5 +8,5 @@
   "issue_tracker": "https://github.com/yourusername/ha-alpsolar-inteless/issues",
   "requirements": ["requests>=2.25.1"],
   "dependencies": ["sensor", "integration"],
-  "version": "1.1.3"
+  "version": "1.2.0"
 }
