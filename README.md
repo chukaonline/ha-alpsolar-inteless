@@ -87,5 +87,5 @@ All 12 entities are automatically grouped for easy management.
 
 ---
 <div align="center">
-  <sub>This is my first Home Assistant integration. Built with ❤️ by <b>chukaonline</b> at <b>ICFLOURISH</b>.</sub>
+  <sub>This is my first Home Assistant integration. Built with ❤️ by <b>chukaonline</b>.</sub>
 </div>
