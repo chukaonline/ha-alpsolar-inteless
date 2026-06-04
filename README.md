@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="images/logo.svg" alt="Logo" width="100" height="100">
+  <img src="custom_components/alpsolar_inteless/images/logo.png" alt="Logo" width="100" height="100">
 
   # Alpsolar Inteless for Home Assistant
   
