@@ -2,6 +2,8 @@ DOMAIN = "alpsolar_inteless"
 CONF_PLANT_ID = "plant_id"
 CONF_REGION = "region"
 
+DATA_URL = "https://pv.inteless.com"
+
 REGIONS = {
     "Europe": "https://euapi.inteless.com",
     "America": "https://usapi.inteless.com",
