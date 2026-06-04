@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#1e293b"/>
+    </linearGradient>
+    <linearGradient id="solarGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#f59e0b"/>
+      <stop offset="50%" stop-color="#f97316"/>
+      <stop offset="100%" stop-color="#ef4444"/>
+    </linearGradient>
+    <linearGradient id="haGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#0369a1"/>
+    </linearGradient>
+    <style>
+      .grid-line { stroke: #334155; stroke-width: 4; stroke-dasharray: 4 8; }
+      .accent-glow { filter: drop-shadow(0px 8px 16px rgba(249, 115, 22, 0.4)); }
+    </style>
+  </defs>
+
+  <rect width="512" height="512" rx="112" fill="url(#bgGrad)"/>
+
+  <line x1="256" y1="40" x2="256" y2="472" class="grid-line" />
+  <line x1="40" y1="256" x2="472" y2="256" class="grid-line" />
+  <circle cx="256" cy="256" r="160" fill="none" stroke="#334155" stroke-width="3" stroke-dasharray="6 6"/>
+
+  <g class="accent-glow">
+    <circle cx="256" cy="110" r="18" fill="url(#solarGrad)"/>
+    <circle cx="382" cy="202" r="14" fill="url(#solarGrad)"/>
+    <circle cx="334" cy="350" r="14" fill="url(#solarGrad)"/>
+    <circle cx="178" cy="350" r="14" fill="url(#solarGrad)"/>
+    <circle cx="130" cy="202" r="14" fill="url(#solarGrad)"/>
+    
+    <path d="M256,110 L256,210 M382,202 L296,236 M334,350 L276,286 M178,350 L236,286 M130,202 L216,236" 
+          stroke="url(#solarGrad)" stroke-width="6" stroke-linecap="round" opacity="0.8"/>
+
+    <path d="M256,170 L340,230 L310,330 L202,330 L172,230 Z" fill="#1e293b" stroke="url(#solarGrad)" stroke-width="12" stroke-linejoin="round"/>
+    
+    <path d="M230,210 L290,210 L240,260 L280,260 L220,315 L240,265 L210,265 Z" fill="url(#solarGrad)"/>
+  </g>
+
+  <path d="M216,400 Q256,380 296,400" fill="none" stroke="url(#haGrad)" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="216" cy="400" r="8" fill="#38bdf8"/>
+  <circle cx="256" cy="390" r="10" fill="#38bdf8"/>
+  <circle cx="296" cy="400" r="8" fill="#38bdf8"/>
+</svg>
