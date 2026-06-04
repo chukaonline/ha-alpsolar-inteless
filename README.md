@@ -4,12 +4,12 @@
   # Alpsolar Inteless for Home Assistant
   
   [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
-  ![Version](https://img.shields.io/badge/version-v1.2.0-blue.svg)
+  [![GitHub release (latest by date)](https://img.shields.io/github/v/release/chukaonline/ha-alpsolar-inteless?color=blue)](https://github.com/chukaonline/ha-alpsolar-inteless/releases)
   ![Community](https://img.shields.io/badge/Maintained%3F-yes-green.svg)
   ![Platform](https://img.shields.io/badge/Platform-Home%20Assistant-blue.svg)
 
   **A cloud based integration for Alpsolar and E-Linter (Inteless) Inverters.**
-  *Developed by chukaonline*
+  *Developed by chukaonline (ICFLOURISH)*
 </div>
 
 ---
