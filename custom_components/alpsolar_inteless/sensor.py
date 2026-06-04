@@ -14,7 +14,7 @@ from homeassistant.helpers.update_coordinator import (
     UpdateFailed,
 )
 from homeassistant.util import slugify
-from .const import DOMAIN, REGIONS, DATA_URL, CONF_PLANT_ID, CONF_REGION
+from .const import DOMAIN, REGIONS, CONF_PLANT_ID, CONF_REGION
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -78,9 +78,9 @@ class AlpsolarCoordinator(DataUpdateCoordinator):
         def fetch():
             try:
                 region_name = self.config.get(CONF_REGION, "Europe")
-                auth_url = REGIONS.get(region_name, "https://euapi.inteless.com")
+                base_url = REGIONS.get(region_name, "https://euapi.inteless.com")
                 
-                # 1. Authenticate against regional endpoint
+                # 1. Authenticate against the region's specific base URL
                 login_data = {
                     "username": self.config["username"], 
                     "password": self.config["password"], 
@@ -88,24 +88,24 @@ class AlpsolarCoordinator(DataUpdateCoordinator):
                     "client_id": "csp-web"
                 }
                 
-                token_r = requests.post(f"{auth_url}/oauth/token", json=login_data, timeout=15)
+                token_r = requests.post(f"{base_url}/oauth/token", json=login_data, timeout=15)
                 token_r.raise_for_status()
                 token = token_r.json().get("data", {}).get("access_token")
                 
                 if not token:
-                    raise UpdateFailed("Failed to obtain access token from regional endpoint")
+                    raise UpdateFailed(f"Failed to obtain token from {region_name} server")
                 
-                # 2. Fetch actual inverter data from global domain (As per Issue #1)
+                # 2. Fetch data from the EXACT SAME regional URL
                 headers = {"Authorization": f"Bearer {token}"}
                 plant_id = self.config[CONF_PLANT_ID]
-                flow_url = f"{DATA_URL}/api/v1/plant/energy/{plant_id}/flow"
+                flow_url = f"{base_url}/api/v1/plant/energy/{plant_id}/flow"
                 
                 res = requests.get(flow_url, headers=headers, timeout=15)
                 res.raise_for_status()
                 return res.json().get("data") or {}
                 
             except Exception as err:
-                raise UpdateFailed(f"API Error during endpoint separation: {err}")
+                raise UpdateFailed(f"API Error during localized data fetch: {err}")
                 
         return await self.hass.async_add_executor_job(fetch)
 
