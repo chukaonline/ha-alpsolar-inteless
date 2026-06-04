@@ -2,11 +2,9 @@ DOMAIN = "alpsolar_inteless"
 CONF_PLANT_ID = "plant_id"
 CONF_REGION = "region"
 
-DATA_URL = "https://pv.inteless.com"
-
 REGIONS = {
     "Europe": "https://euapi.inteless.com",
     "America": "https://usapi.inteless.com",
-    "Asia": "https://asiaapi.inteless.com",
+    "Asia": "https://pv.inteless.com",
     "Global": "https://api.inteless.com"
 }
