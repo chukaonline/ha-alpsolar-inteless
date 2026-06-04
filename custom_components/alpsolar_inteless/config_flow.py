@@ -11,14 +11,13 @@ class AlpsolarConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors = {}
 
         if user_input is not None:
-            # Use the URL based on selected region
-            base_url = REGIONS[user_input[CONF_REGION]]
+            auth_url = REGIONS[user_input[CONF_REGION]]
             
             valid = await self.hass.async_add_executor_job(
                 self._validate_login, 
                 user_input[CONF_USERNAME], 
                 user_input[CONF_PASSWORD],
-                base_url
+                auth_url
             )
 
             if valid:
@@ -29,7 +28,6 @@ class AlpsolarConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             else:
                 errors["base"] = "invalid_auth"
 
-        # Form schema with Region Dropdown
         data_schema = vol.Schema({
             vol.Required(CONF_REGION, default="Europe"): vol.In(list(REGIONS.keys())),
             vol.Required(CONF_USERNAME): cv.string,
@@ -39,11 +37,16 @@ class AlpsolarConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(step_id="user", data_schema=data_schema, errors=errors)
 
-    def _validate_login(self, username, password, base_url):
+    def _validate_login(self, username, password, auth_url):
         import requests
-        login_data = {"username": username, "password": password, "grant_type": "password", "client_id": "csp-web"}
+        login_data = {
+            "username": username,
+            "password": password,
+            "grant_type": "password",
+            "client_id": "csp-web"
+        }
         try:
-            r = requests.post(f"{base_url}/oauth/token", json=login_data, timeout=10)
+            r = requests.post(f"{auth_url}/oauth/token", json=login_data, timeout=10)
             return r.status_code == 200 and "access_token" in r.json().get("data", {})
         except Exception:
             return False
