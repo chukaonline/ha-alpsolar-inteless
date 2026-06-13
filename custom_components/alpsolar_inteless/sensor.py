@@ -19,7 +19,7 @@ from .const import DOMAIN, REGIONS, CONF_PLANT_ID, CONF_REGION
 _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(hass, entry, async_add_entities):
-    """Set up all Alpsolar sensors including Battery In/Out logic."""
+    """Set up all Alpsolar sensors with dynamic, robust object handshaking."""
     coordinator = AlpsolarCoordinator(hass, entry.data)
     await coordinator.async_config_entry_first_refresh()
     
@@ -27,39 +27,43 @@ async def async_setup_entry(hass, entry, async_add_entities):
     device_name = "Alpsolar Inverter"
     plant_id = coordinator.config[CONF_PLANT_ID]
 
-    # 1. Base Power Sensors
-    power_configs = [
-        ("pvPower", "Solar PV Power", SensorDeviceClass.POWER, "W"),
-        ("loadOrEpsPower", "House Load", SensorDeviceClass.POWER, "W"),
-        ("battPower", "Battery Power", SensorDeviceClass.POWER, "W"),
-        ("soc", "Battery SOC", SensorDeviceClass.BATTERY, "%"),
-        ("gridOrMeterPower", "Grid Power", SensorDeviceClass.POWER, "W"),
-    ]
+    # 1. Instantiate Parent Power Sensors as discrete objects
+    solar_pv_sensor = AlpsolarSensor(coordinator, "pvPower", "Solar PV Power", SensorDeviceClass.POWER, "W", device_name)
+    house_load_sensor = AlpsolarSensor(coordinator, "loadOrEpsPower", "House Load", SensorDeviceClass.POWER, "W", device_name)
+    grid_power_sensor = AlpsolarSensor(coordinator, "gridOrMeterPower", "Grid Power", SensorDeviceClass.POWER, "W", device_name)
+    batt_sensor = AlpsolarSensor(coordinator, "battPower", "Battery Power", SensorDeviceClass.POWER, "W", device_name)
+    soc_sensor = AlpsolarSensor(coordinator, "soc", "Battery SOC", SensorDeviceClass.BATTERY, "%", device_name)
     
-    for key, name, dev_class, unit in power_configs:
-        ps = AlpsolarSensor(coordinator, key, name, dev_class, unit, device_name)
-        all_entities.append(ps)
+    # 2. Instantiate Split Battery Power Sensors
+    batt_in_sensor = BatterySplitSensor(coordinator, "in", device_name)
+    batt_out_sensor = BatterySplitSensor(coordinator, "out", device_name)
+    
+    # Add parent tracking array
+    all_entities.extend([
+        solar_pv_sensor, 
+        house_load_sensor, 
+        grid_power_sensor,
+        batt_sensor, 
+        soc_sensor, 
+        batt_in_sensor, 
+        batt_out_sensor
+    ])
 
-    # 2. Split Battery Power Sensors (Charging vs Discharging)
-    batt_in_power = BatterySplitSensor(coordinator, "in", device_name)
-    batt_out_power = BatterySplitSensor(coordinator, "out", device_name)
-    all_entities.extend([batt_in_power, batt_out_power])
-
-    # 3. Energy Sensors (Riemann Sum)
+    # 3. Dynamic Energy Sensor Creation via Direct Property Mapping
+    # This reads the live runtime .entity_id directly, remaining immune to renames.
     energy_targets = [
-        ("solar_pv_power", "Solar PV Power Energy"),
-        ("house_load", "House Load Energy"),
-        ("grid_power", "Grid Power Energy"),
-        ("battery_power_in", "Battery Energy In"),
-        ("battery_power_out", "Battery Energy Out"),
+        (solar_pv_sensor, "Solar PV Power Energy"),
+        (house_load_sensor, "House Load Energy"),
+        (grid_power_sensor, "Grid Power Energy"),
+        (batt_in_sensor, "Battery Energy In"),
+        (batt_out_sensor, "Battery Energy Out"),
     ]
 
-    for slug_part, energy_name in energy_targets:
-        source_id = f"sensor.{slugify(f'{device_name} {slug_part}')}"
+    for source_sensor, energy_name in energy_targets:
         all_entities.append(
             AlpsolarEnergySensor(
                 hass=hass,
-                source_entity=source_id,
+                source_sensor=source_sensor,  # Pass the entire live sensor object
                 name=energy_name,
                 unique_id=f"alps_{plant_id}_{slugify(energy_name)}",
                 plant_id=plant_id,
@@ -80,7 +84,6 @@ class AlpsolarCoordinator(DataUpdateCoordinator):
                 region_name = self.config.get(CONF_REGION, "Europe")
                 base_url = REGIONS.get(region_name, "https://euapi.inteless.com")
                 
-                # 1. Authenticate against the region's specific base URL
                 login_data = {
                     "username": self.config["username"], 
                     "password": self.config["password"], 
@@ -93,20 +96,22 @@ class AlpsolarCoordinator(DataUpdateCoordinator):
                 token = token_r.json().get("data", {}).get("access_token")
                 
                 if not token:
-                    raise UpdateFailed(f"Failed to obtain token from {region_name} server")
+                    raise UpdateFailed("Failed to obtain access token from local API shard.")
                 
-                # 2. Fetch data from the EXACT SAME regional URL
                 headers = {"Authorization": f"Bearer {token}"}
                 plant_id = self.config[CONF_PLANT_ID]
-                flow_url = f"{base_url}/api/v1/plant/energy/{plant_id}/flow"
+                list_url = f"{base_url}/api/v1/plant/station/list"
                 
-                res = requests.get(flow_url, headers=headers, timeout=15)
+                res = requests.get(list_url, headers=headers, timeout=15)
                 res.raise_for_status()
-                return res.json().get("data") or {}
                 
+                stations = res.json().get("data", {}).get("list", [])
+                for station in stations:
+                    if stroke := str(station.get("plantId")) == str(plant_id):
+                        return station
+                return {}
             except Exception as err:
-                raise UpdateFailed(f"API Error during localized data fetch: {err}")
-                
+                raise UpdateFailed(f"API Error during telemetry sync: {err}")
         return await self.hass.async_add_executor_job(fetch)
 
 class AlpsolarSensor(CoordinatorEntity, SensorEntity):
@@ -146,17 +151,27 @@ class BatterySplitSensor(CoordinatorEntity, SensorEntity):
         val = self.coordinator.data.get("battPower", 0)
         try:
             val = float(val)
-            if self._mode == "in":
-                return max(0, val)
-            else:
-                return max(0, -val)
+            if self._mode == "in": return max(0, val)
+            else: return max(0, -val)
         except: return 0.0
 
 class AlpsolarEnergySensor(IntegrationSensor):
-    def __init__(self, hass, source_entity, name, unique_id, plant_id, device_name):
+    def __init__(self, hass, source_sensor, name, unique_id, plant_id, device_name):
+        self._source_sensor = source_sensor
         super().__init__(
-            hass=hass, integration_method="left", name=name, round_digits=2,
-            source_entity=source_entity, unique_id=unique_id, unit_prefix="k",
-            unit_time=UnitOfTime.HOURS, max_sub_interval=None
+            hass=hass, 
+            integration_method="left", 
+            name=name, 
+            round_digits=2,
+            source_entity=source_sensor.entity_id, # Safely populated during registration
+            unique_id=unique_id, 
+            unit_prefix="k",
+            unit_time=UnitOfTime.HOURS, 
+            max_sub_interval=None
         )
         self._attr_device_info = {"identifiers": {(DOMAIN, plant_id)}, "name": device_name}
+
+    async def async_added_to_hass(self):
+        """Handle tracking fallback dynamically if entity_id strings change."""
+        self._source_entity = self._source_sensor.entity_id
+        await super().async_added_to_hass()
